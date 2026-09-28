@@ -1,5 +1,8 @@
 # K4 — Level 3A, Ngày 12: Hạ Tầng Cloud & Deployment (240 phút)
 
+**Demo sau khi chạy service:** mở `/demo` (local: `http://localhost:8000/demo`).
+Hướng dẫn chạy, trình tự trình bày và giải thích từng checkpoint: [DEMO_GUIDE.md](DEMO_GUIDE.md).
+
 Đưa một AI agent từ `localhost:8000` lên một địa chỉ công khai mà người khác
 gọi được, có bảo mật, có giới hạn chi phí, và không sập khi bạn deploy bản mới.
 

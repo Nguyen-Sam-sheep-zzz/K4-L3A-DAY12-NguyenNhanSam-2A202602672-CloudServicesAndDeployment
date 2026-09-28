@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Day 12 · Agent Demo</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background:#0b1020; color:#eef2ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(circle at 85% 0%,#243e75 0,transparent 35%),#0b1020; }
+    main { max-width:1050px; margin:auto; padding:44px 22px 70px; }
+    header { margin-bottom:28px; }
+    .eyebrow { color:#8bc5ff; text-transform:uppercase; letter-spacing:.15em; font-size:.75rem; font-weight:700; }
+    h1 { font-size:clamp(2rem,5vw,3.5rem); line-height:1.1; margin:12px 0; }
+    .subtitle { color:#aab7cf; max-width:700px; line-height:1.6; }
+    .grid { display:grid; grid-template-columns:1.25fr .75fr; gap:18px; }
+    .card { background:#151e34; border:1px solid #354362; border-radius:18px; padding:24px; box-shadow:0 12px 32px #05091455; }
+    h2 { margin:0 0 18px; font-size:1.2rem; }
+    label { display:block; margin:14px 0 7px; color:#c6d4ed; font-weight:600; font-size:.88rem; }
+    input, textarea { width:100%; border:1px solid #465674; border-radius:10px; padding:12px 14px; background:#0d1527; color:#fff; font:inherit; }
+    textarea { min-height:110px; resize:vertical; }
+    input:focus, textarea:focus { outline:2px solid #72b7ff; outline-offset:1px; }
+    button { border:0; border-radius:10px; padding:12px 18px; background:#79bbff; color:#071426; font:inherit; font-weight:750; cursor:pointer; }
+    button:hover { background:#a7d2ff; }
+    button:disabled { opacity:.55; cursor:wait; }
+    .row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:16px; }
+    .muted { color:#9aabc8; font-size:.85rem; line-height:1.5; }
+    .status { display:flex; justify-content:space-between; gap:12px; padding:13px 0; border-bottom:1px solid #34415c; }
+    .status:last-child { border:0; }
+    .pill { color:#98a8c4; font-weight:700; }
+    .pill.ok { color:#71e4b8; }
+    .pill.bad { color:#ff9a9a; }
+    .answer { white-space:pre-wrap; line-height:1.6; background:#0d1527; border-radius:12px; padding:17px; min-height:110px; }
+    .meta { margin-top:12px; color:#9fb2d1; font-size:.84rem; line-height:1.6; }
+    .result { margin-top:18px; }
+    a { color:#8bc5ff; }
+    @media(max-width:760px) { .grid { grid-template-columns:1fr; } main { padding-top:30px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">K4 · Day 12 · Cloud & Deployment</div>
+    <h1>Production Agent Demo</h1>
+    <p class="subtitle">Thử một request qua đúng luồng xác thực, giới hạn lượt gọi, ngân sách và lịch sử Redis. Phần trả lời do mock LLM tạo để demo ổn định và không cần khóa nhà cung cấp AI.</p>
+  </header>
+  <div class="grid">
+    <section class="card">
+      <h2>Gửi câu hỏi</h2>
+      <form id="ask-form">
+        <label for="api-key">API key của service</label>
+        <input id="api-key" type="password" autocomplete="off" required placeholder="Nhập khóa từ file .env hoặc Railway Variables">
+        <p class="muted">Khóa chỉ được giữ trong tab hiện tại để gửi request. Trang không lưu vào localStorage.</p>
+        <label for="user-id">User ID demo</label>
+        <input id="user-id" value="demo-user" maxlength="80" required>
+        <label for="question">Câu hỏi</label>
+        <textarea id="question" maxlength="2000" required>Docker giúp deploy agent như thế nào?</textarea>
+        <div class="row"><button id="send" type="submit">Gửi tới /ask</button><span class="muted">Giới hạn mặc định: 10 request/phút/user</span></div>
+      </form>
+      <div class="result" aria-live="polite">
+        <h2>Kết quả</h2>
+        <div id="answer" class="answer">Nhập API key và gửi câu hỏi để xem câu trả lời.</div>
+        <div id="meta" class="meta"></div>
+      </div>
+    </section>
+    <aside class="card">
+      <h2>Trạng thái service</h2>
+      <div class="status"><span>/health · process</span><span id="health" class="pill">Đang kiểm tra</span></div>
+      <div class="status"><span>/ready · Redis</span><span id="ready" class="pill">Đang kiểm tra</span></div>
+      <div class="row"><button type="button" id="refresh">Kiểm tra lại</button></div>
+      <p class="muted">Nếu /health tốt nhưng /ready lỗi, hãy kiểm tra REDIS_URL và trạng thái Redis. Mở <a href="/docs">API docs</a> để thử endpoint trực tiếp.</p>
+      <p class="muted">401: thiếu/sai key · 429: vượt rate limit · 402: hết ngân sách tháng · 503: chưa sẵn sàng.</p>
+    </aside>
+  </div>
+</main>
+<script>
+  async function check(path) {
+    const el = document.getElementById(path.slice(1));
+    el.textContent = 'Đang kiểm tra'; el.className = 'pill';
+    try {
+      const response = await fetch(path, {cache:'no-store'});
+      const body = await response.json();
+      el.textContent = response.status + ' · ' + body.status;
+      el.className = 'pill ' + (response.ok ? 'ok' : 'bad');
+    } catch (_) { el.textContent = 'Không kết nối được'; el.className = 'pill bad'; }
+  }
+  function refresh() { check('/health'); check('/ready'); }
+  document.getElementById('refresh').addEventListener('click', refresh);
+  document.getElementById('ask-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = document.getElementById('send');
+    const answer = document.getElementById('answer');
+    const meta = document.getElementById('meta');
+    button.disabled = true; answer.textContent = 'Đang gửi request…'; meta.textContent = '';
+    try {
+      const response = await fetch('/ask', {
+        method:'POST', headers:{'Content-Type':'application/json', 'X-API-Key':document.getElementById('api-key').value, 'X-User-Id':document.getElementById('user-id').value},
+        body:JSON.stringify({question:document.getElementById('question').value})
+      });
+      const body = await response.json();
+      if (!response.ok) { answer.textContent = 'HTTP ' + response.status + ' · ' + (body.detail || 'Có lỗi xảy ra'); return; }
+      answer.textContent = body.answer;
+      meta.textContent = 'User: ' + body.user_id + ' · Lịch sử trước câu hỏi: ' + body.history_length + ' tin nhắn · Token: ' + body.tokens.in + ' vào / ' + body.tokens.out + ' ra · Chi phí giả lập: $' + body.cost_usd;
+    } catch (_) { answer.textContent = 'Không kết nối được với service.'; }
+    finally { button.disabled = false; }
+  });
+  refresh();
+</script>
+</body>
+</html>
