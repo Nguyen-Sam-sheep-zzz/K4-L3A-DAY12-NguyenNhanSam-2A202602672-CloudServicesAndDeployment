@@ -50,6 +50,10 @@ Chạy test và điểm:
 .\.venv\Scripts\python.exe grade.py --no-bonus
 ```
 
+Trên Windows, trước khi chạy test Docker hãy đặt `$env:PYTHONUTF8='1'` và
+`$env:PYTHONIOENCODING='utf-8'`; nếu không, Python có thể giải mã output Docker
+bằng `cp1252` và báo `UnicodeDecodeError` dù image vẫn build được.
+
 `test_cp5.py` chỉ có ý nghĩa khi đã deploy công khai hoặc bật phương án local fallback và có stack Docker thật. Đừng điền URL mẫu hoặc bịa output vào `DEPLOYMENT.md`.
 
 ## 3. Nói gì khi demo (khoảng 3 phút)
@@ -58,7 +62,7 @@ Chạy test và điểm:
 2. **45 giây:** gửi một câu với API key đúng. Chỉ vào answer, token, chi phí giả lập. Gửi tiếp câu thứ hai với cùng User ID; `history_length` tăng từ 0 lên 2.
 3. **30 giây:** bỏ hoặc nhập sai key để thấy 401. Chỉ giải thích `secrets.compare_digest` và lý do secret lấy từ environment.
 4. **45 giây:** giới thiệu Redis lưu ba loại key: `history:`, `ratelimit:`, `cost:`. Rate limit trả 429 khi gọi quá 10 lần trong 60 giây; cost guard trả 402 khi vượt ngân sách tháng.
-5. **30 giây:** chỉ Dockerfile multi-stage, non-root, healthcheck, `$PORT`, rồi mở URL Railway nếu đã deploy.
+5. **30 giây:** chỉ Dockerfile multi-stage, non-root, healthcheck, `$PORT`, rồi mở URL Railway đang chạy.
 
 ## 4. Hiểu từng checkpoint
 
@@ -81,7 +85,7 @@ Chạy test và điểm:
 
 ## 5. Đưa lên Railway
 
-1. Đổi tên repo GitHub theo đúng mẫu trong `SUBMISSION.md`, push các file đã hoàn thiện; không push `.env`.
+1. Repo GitHub đã có tên đúng mẫu trong `SUBMISSION.md`; push các file đã hoàn thiện, không push `.env`.
 2. Trong Railway, tạo project từ repo GitHub này, dùng Dockerfile ở gốc repo.
 3. Thêm Redis service và gắn `REDIS_URL` của nó vào agent. Đặt `AGENT_API_KEY` trong Variables của agent. Có thể để mặc định `RATE_LIMIT_PER_MINUTE=10`, `MONTHLY_BUDGET_USD=10.0`, `LOG_LEVEL=INFO`. Railway tự cấp `PORT`.
 4. Tạo public domain HTTPS. Kiểm tra `/health` và `/ready` đều 200, `/ask` không key trả 401, `/ask` có key trả 200. Mở `/demo` để trình bày.
@@ -91,7 +95,10 @@ Nếu Railway chưa khả dụng, làm phương án `LOCAL_FALLBACK=true` theo `
 
 ## 6. Bài viết cá nhân và bằng chứng
 
-`exercises.md` gồm 10 câu phản ánh. Điền bằng lời của chính bạn sau khi quan sát. Câu 2 cần log thật; câu 3 cần số đo image thật; câu 10 cần lỗi deploy thật. Không điền số liệu hay lỗi giả để làm file trông đủ.
+`exercises.md` gồm 10 câu phản ánh đã được soạn từ các quan sát trong phiên này.
+Trước khi nộp, bạn cần đọc và sửa bằng lời của mình, đồng thời bảo đảm giải thích
+được từng câu khi Lab Coach hỏi. Câu 2 dùng log thật; câu 3 dùng số đo image thật;
+câu 9 dùng ba container thật; câu 10 dùng lỗi deploy thật.
 
 ## 7. Kết quả kiểm tra đã quan sát trong phiên này
 
@@ -103,5 +110,8 @@ Nếu Railway chưa khả dụng, làm phương án `LOCAL_FALLBACK=true` theo `
 {"event": "ask_completed", "level": "info", "timestamp": "2026-09-28T08:06:06.085710+00:00", "user_id": "http-demo-check", "tokens_in": 3, "tokens_out": 41, "cost_usd": 2.505e-05}
 ```
 
-- Docker Desktop đã được thử khởi động nhưng Engine chưa xuất hiện; `docker info` báo không kết nối được `dockerDesktopLinuxEngine`. Chưa có bằng chứng build image, kích thước image, hoặc Compose stack thật.
-- Railway chưa deploy trong phiên này. `DEPLOYMENT.md` vẫn là mẫu; chưa có public URL, screenshot hoặc kết quả CP5. Các phần đó phải điền sau khi chạy và kiểm tra thật.
+- Docker Engine hiện đã chạy. Hai test build/size CP2 pass với `PYTHONUTF8=1`; image multi-stage có kích thước **310 MB**. Dockerfile một stage gốc ở `Dockerfile.single-stage` build thành image **1.73 GB**. Compose agent và Redis đều healthy. Ba agent dùng chung Redis cho `history_length` **0 → 2 → 4** khi cùng User ID lần lượt đi qua ba container.
+- Railway project `beneficial-courage` đã có agent và Redis Online, nối bằng biến tham chiếu `REDIS_URL`; public domain dùng port 8080 và healthcheck `/ready`.
+- Public URL: https://k4-l3a-day12-nguyennhansam-2a202602672-cloudserv-production.up.railway.app — `/health` 200, `/ready` 200 với `redis=true`, `/demo` 200, `/ask` không key 401, có key 200. Hai lượt cùng User ID cho `history_length` 0 rồi 2. Mười lần gọi đầu trong một cửa sổ trả 200, năm lần tiếp theo trả 429.
+- `pytest tests/test_cp5.py -v` với `DEPLOY_API_KEY` chỉ đặt trong tiến trình: **9 passed, 4 skipped** (nhánh local fallback). Chưa lưu ảnh vào `screenshots/`.
+- `grade.py --no-bonus` với `PYTHONUTF8=1`: CP1 13/13, CP2 16/16, CP3 22/22, CP4 19/19, CP5 9/9; phần 10 câu phản ánh đã được soạn nhưng cần học viên tự đọc và giải thích. Khi nộp, chụp hai ảnh trong `screenshots/` theo hướng dẫn của `DEPLOYMENT.md`.

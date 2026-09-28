@@ -10,17 +10,17 @@
 
 | Mục | Nội dung |
 |-----|----------|
-| Họ và tên | (điền họ tên) |
-| Mã học viên | (điền mã học viên) |
-| Repo | (điền link repo K4-L3A-DAY12-HoVaTen-MSSV-CloudServicesAndDeployment) |
+| Họ và tên | Nguyễn Nhân Sâm |
+| Mã học viên | 2A202602672 |
+| Repo | https://github.com/Nguyen-Sam-sheep-zzz/K4-L3A-DAY12-NguyenNhanSam-2A202602672-CloudServicesAndDeployment |
 
 ## Service
 
 | Mục | Nội dung |
 |-----|----------|
-| Public URL | https://TODO-thay-bang-url-that.up.railway.app |
-| Platform | Railway / Render / Cloud Run — (điền platform bạn dùng) |
-| Ngày deploy | (điền ngày) |
+| Public URL | https://k4-l3a-day12-nguyennhansam-2a202602672-cloudserv-production.up.railway.app |
+| Platform | Railway |
+| Ngày deploy | 2026-09-28 |
 
 ## Biến Môi Trường Đã Set Trên Cloud
 
@@ -30,7 +30,7 @@ Ghi tên biến và **nguồn giá trị**, không ghi giá trị:
 |------|--------|---------|
 | `PORT` | ✅ | platform tự gán |
 | `AGENT_API_KEY` | ✅ | đặt trong dashboard, không nằm trong repo |
-| `REDIS_URL` | ✅ | (điền: Redis add-on của platform / Upstash / ...) |
+| `REDIS_URL` | ✅ | Redis service nội bộ của Railway |
 | `RATE_LIMIT_PER_MINUTE` | ✅ | 10 |
 | `MONTHLY_BUDGET_USD` | ✅ | 10.0 |
 | `LOG_LEVEL` | ✅ | INFO |
@@ -70,11 +70,24 @@ done; echo
 
 ## Kết Quả Chạy Thật
 
-Dán output của các lệnh trên vào đây:
+Kết quả HTTP thật ngày 2026-09-28 trên URL công khai:
 
 ```
-(điền output)
+GET /health  -> 200 {"status":"ok","service":"day12-agent","version":"1.0.0"}
+GET /ready   -> 200 {"status":"ready","redis":true}
+GET /demo    -> 200 (HTML giao diện demo)
+POST /ask không có X-API-Key -> 401
+POST /ask có X-API-Key -> 200, history_length lần 1 = 0, lần 2 = 2
+15 request với user riêng: 200 x 10, 429 x 5
+pytest tests/test_cp5.py -v với DEPLOY_API_KEY trong tiến trình:
+  9 passed, 4 skipped (nhánh local fallback)
 ```
+
+Lần deploy đầu tiên đã từng crash vì thiếu biến bắt buộc `AGENT_API_KEY`;
+Railway logs báo `pydantic_core.ValidationError: agent_api_key Field required`.
+Sau đó đã tạo Redis service, nối `REDIS_URL`, đặt healthcheck `/ready` và tạo
+public domain. Biến `AGENT_API_KEY` được nhập trong Railway Variables, không
+ghi vào repo. Railway hiện báo agent và Redis đều Online.
 
 ## Ảnh Chụp Màn Hình
 
@@ -97,5 +110,5 @@ Không đăng ký được tài khoản cloud? Vẫn nộp được bài, nhưng
 5. Ghi rõ lý do không deploy được vào phần dưới đây:
 
 ```
-(điền lý do nếu dùng phương án dự phòng, ngược lại xóa mục này)
+Không dùng phương án dự phòng; triển khai chính thức trên Railway.
 ```
